@@ -248,3 +248,73 @@ impl Default for OrangeyCtx {
         Self::new()
     }
 }
+
+macro_rules! iter_wrapper {
+    (fn $name:ident(&mut self $(, $arg:ident: $type:ty)* $(,)?) -> $ret:ty, $struct_name:ident, $method_name:ident) => {
+        pub struct $struct_name<'a> {
+            ctx: &'a mut OrangeyCtx,
+            $($arg: $type,)*
+        }
+
+        impl<'a> Iterator for $struct_name<'a> {
+            type Item = $ret;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                Some(self.ctx.$name($(self.$arg.clone(),)*))
+            }
+        }
+
+        impl OrangeyCtx {
+            #[doc = concat!("Returns an iterator over the values of [`OrangeyCtx::", stringify!($name), "`]")]
+            pub fn $method_name(&mut self $(, $arg: $type)*) -> $struct_name {
+                $struct_name {
+                    ctx: self,
+                    $($arg,)*
+                }
+            }
+        }
+    };
+}
+
+iter_wrapper!(fn rand_range(&mut self, range: Range<u64>) -> u64, RandRangeIter, rand_range_iter);
+iter_wrapper!(fn uniform_double(&mut self) -> f64, UniformDoubleIter, uniform_double_iter);
+iter_wrapper!(fn all_doubles(&mut self) -> f64, AllDoublesIter, all_doubles_iter);
+iter_wrapper!(fn gaussian(&mut self) -> f64, GaussianIter, gaussian_iter);
+iter_wrapper!(fn poisson(&mut self, ev: f64) -> u64, PoissonIter, poisson_iter);
+
+macro_rules! peek_iter_wrapper {
+    (fn $name:ident(&self $(, $arg:ident: $type:ty)* $(,)?) -> $ret:ty, $struct_name:ident, $method_name:ident) => {
+        pub struct $struct_name<'a> {
+            ctx: &'a OrangeyCtx,
+            delta: u128,
+            $($arg: $type,)*
+        }
+
+        impl<'a> Iterator for $struct_name<'a> {
+            type Item = $ret;
+
+            fn next(&mut self) -> Option<Self::Item> {
+                let previous_delta = self.delta;
+                self.delta += 1;
+                Some(self.ctx.$name(previous_delta $(, self.$arg.clone())*))
+            }
+        }
+
+        impl OrangeyCtx {
+            #[doc = concat!("Returns an iterator over the values of [`OrangeyCtx::", stringify!($name), "`] with increasing `delta`s")]
+            pub fn $method_name(&self $(, $arg: $type)*) -> $struct_name {
+                $struct_name {
+                    ctx: self,
+                    delta: 0,
+                    $($arg,)*
+                }
+            }
+        }
+    };
+}
+
+peek_iter_wrapper!(fn peek_range(&self, range: Range<u64>) -> u64, PeekRangeIter, peek_range_iter);
+peek_iter_wrapper!(fn peek_uniform_double(&self) -> f64, PeekUniformDoubleIter, peek_uniform_double_iter);
+peek_iter_wrapper!(fn peek_all_doubles(&self) -> f64, PeekAllDoublesIter, peek_all_doubles_iter);
+peek_iter_wrapper!(fn peek_gaussian(&self) -> f64, PeekGaussianIter, peek_gaussian_iter);
+peek_iter_wrapper!(fn peek_poisson(&self, ev: f64) -> u64, PeekPoissonIter, peek_poisson_iter);

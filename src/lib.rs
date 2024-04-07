@@ -112,6 +112,10 @@ impl OrangeyCtx {
         r + range.start
     }
 
+    pub fn rand_range_iter(&mut self, range: Range<u64>) -> RandRangeIter<'_> {
+        RandRangeIter { ctx: self, range }
+    }
+
     /// Generates a float in the range [0, 1) with uniform density.
     /// This does not have an equal chance of hitting every float
     /// in range, but you usually don't want that.
@@ -124,6 +128,10 @@ impl OrangeyCtx {
         i &= MASK;
         i |= S_EXP;
         f64::from_bits(i) - 1.0
+    }
+
+    pub fn uniform_double_iter(&mut self) -> UniformDoubleIter<'_> {
+        UniformDoubleIter { ctx: self }
     }
 
     /// Has an equal chance of generating any representable float in the range [0, 1).
@@ -153,6 +161,10 @@ impl OrangeyCtx {
         (significand as f64) * (exponent as f64).exp2()
     }
 
+    pub fn all_doubles_iter(&mut self) -> AllDoublesIter<'_> {
+        AllDoublesIter { ctx: self }
+    }
+
     /// Generates floats with standard gaussian density.
     pub fn gaussian(&mut self) -> f64 {
         let mut rsq;
@@ -165,6 +177,10 @@ impl OrangeyCtx {
         self.peek_uniform_double(1) * (-2.0 * rsq.ln() / rsq).sqrt()
     }
 
+    pub fn gaussian_iter(&mut self) -> GaussianIter<'_> {
+        GaussianIter { ctx: self }
+    }
+
     /// Generates floats matching a poisson distribution with an expected value of `ev`
     pub fn poisson(&mut self, ev: f64) -> u64 {
         let mut n = 0;
@@ -175,6 +191,10 @@ impl OrangeyCtx {
             x *= self.peek_uniform_double(1);
         }
         n
+    }
+
+    pub fn poisson_iter(&mut self, ev: f64) -> PoissonIter<'_> {
+        PoissonIter { ctx: self, ev }
     }
 
     /// Peeks at the `delta`-th future result of `.rand_range(range)` without changing the rng state
@@ -246,5 +266,67 @@ impl OrangeyCtx {
 impl Default for OrangeyCtx {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct RandRangeIter<'a> {
+    ctx: &'a mut OrangeyCtx,
+    range: Range<u64>,
+}
+
+impl<'a> Iterator for RandRangeIter<'a> {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.ctx.rand_range(self.range.clone()))
+    }
+}
+
+pub struct UniformDoubleIter<'a> {
+    ctx: &'a mut OrangeyCtx,
+}
+
+impl<'a> Iterator for UniformDoubleIter<'a> {
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.ctx.uniform_double())
+    }
+}
+
+pub struct AllDoublesIter<'a> {
+    ctx: &'a mut OrangeyCtx,
+}
+
+impl<'a> Iterator for AllDoublesIter<'a> {
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.ctx.all_doubles())
+    }
+}
+
+pub struct GaussianIter<'a> {
+    ctx: &'a mut OrangeyCtx,
+}
+
+impl<'a> Iterator for GaussianIter<'a> {
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.ctx.gaussian())
+    }
+}
+
+pub struct PoissonIter<'a> {
+    ctx: &'a mut OrangeyCtx,
+    ev: f64,
+}
+
+impl<'a> Iterator for PoissonIter<'a> {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.ctx.poisson(self.ev))
     }
 }

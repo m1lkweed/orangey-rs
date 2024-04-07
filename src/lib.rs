@@ -5,9 +5,9 @@
 // without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 // See the GNU General Public License for more details.
 // You should have received a copy of the GNU General Public License along with this library.
-// If not, see <https://www.gnu.org/licenses/>. 
+// If not, see <https://www.gnu.org/licenses/>.
 
-use std::num::Wrapping;
+use std::{num::Wrapping, ops::Range};
 
 pub struct OrangeyCtx {
     state: u128,
@@ -52,14 +52,7 @@ impl OrangeyCtx {
     /// // 18017628057179154148, as if peek were never called
     /// ```
     pub fn peek(&mut self, delta: u128) -> u64 {
-        Self::output(
-            Self::advance(
-                self.state,
-                delta + 1,
-                Self::MUL,
-                self.inc,
-            )
-        )
+        Self::output(Self::advance(self.state, delta + 1, Self::MUL, self.inc))
     }
 
     /// Seeds the generator with new initial state and sequence values
@@ -98,17 +91,16 @@ impl OrangeyCtx {
         Self::output(self.state)
     }
 
-    /// Generates a number in the range [min, max)
-    pub fn rand_range(&mut self, min: u64, max: u64) -> u64 {
-        let (min, max) = (min.min(max), min.max(max));
-        let range = max - min;
-        if max == min {
-            return max;
+    /// Generates a number in the range given
+    pub fn rand_range(&mut self, range: Range<u64>) -> u64 {
+        let distance = range.end - range.start;
+        if range.end == range.start {
+            return range.start;
         }
-        if range.count_ones() == 1 {
-            return (self.rand() & (range - 1)) + min;
+        if distance.count_ones() == 1 {
+            return (self.rand() & (distance - 1)) + range.start;
         }
-        let limit = range.wrapping_neg() % range;
+        let limit = distance.wrapping_neg() % distance;
         let mut r = 0;
         for i in 0.. {
             r = self.peek(i);
@@ -116,8 +108,8 @@ impl OrangeyCtx {
                 break;
             }
         }
-        r %= range;
-        r + min
+        r %= distance;
+        r + range.start
     }
 
     /// Generates a float in the range [0, 1) with uniform density.
@@ -185,37 +177,37 @@ impl OrangeyCtx {
         n
     }
 
-    /// Peeks at the `delta`-th future result of `.rand_range(min, max)` without changing the rng state
-    pub fn peek_range(&self, delta: u128, min: u64, max: u64) -> u64 {
-        let mut new_self = OrangeyCtx{..*self};
+    /// Peeks at the `delta`-th future result of `.rand_range(range)` without changing the rng state
+    pub fn peek_range(&self, delta: u128, range: Range<u64>) -> u64 {
+        let mut new_self = OrangeyCtx { ..*self };
         new_self.skip(delta);
-        new_self.rand_range(min, max)
+        new_self.rand_range(range)
     }
 
     /// Peeks at the `delta`-th future result of `.uniform_double()` without changing the rng state
     pub fn peek_uniform_double(&self, delta: u128) -> f64 {
-        let mut new_self = OrangeyCtx{..*self};
+        let mut new_self = OrangeyCtx { ..*self };
         new_self.skip(delta);
         new_self.uniform_double()
     }
 
     /// Peeks at the `delta`-th future result of `.all_doubles()` without changing the rng state
     pub fn peek_all_doubles(&self, delta: u128) -> f64 {
-        let mut new_self = OrangeyCtx{..*self};
+        let mut new_self = OrangeyCtx { ..*self };
         new_self.skip(delta);
         new_self.all_doubles()
     }
 
     /// Peeks at the `delta`-th future result of `.gaussian()` without changing the rng state
     pub fn peek_gaussian(&self, delta: u128) -> f64 {
-        let mut new_self = OrangeyCtx{..*self};
+        let mut new_self = OrangeyCtx { ..*self };
         new_self.skip(delta);
         new_self.gaussian()
     }
 
     /// Peeks at the `delta`-th future result of `.poisson(ev)` without changing the rng state
     pub fn peek_poisson(&self, delta: u128, ev: f64) -> u64 {
-        let mut new_self = OrangeyCtx{..*self};
+        let mut new_self = OrangeyCtx { ..*self };
         new_self.skip(delta);
         new_self.poisson(ev)
     }
@@ -230,12 +222,7 @@ impl OrangeyCtx {
         self.state = (Wrapping(self.state) * Wrapping(Self::MUL) + Wrapping(self.inc)).0;
     }
 
-    fn advance(
-        state: u128,
-        delta: u128,
-        cur_mult: u128,
-        cur_plus: u128,
-    ) -> u128 {
+    fn advance(state: u128, delta: u128, cur_mult: u128, cur_plus: u128) -> u128 {
         let state = Wrapping(state);
         let mut delta = Wrapping(delta);
         let mut cur_mult = Wrapping(cur_mult);

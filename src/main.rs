@@ -4,7 +4,7 @@ fn main(){
     let mut rng = OrangeyCtx::new();
     for i in 0..3 {println!("({:2}) rng.rand():                   {:0<16x}", i, rng.rand())}
     rng = OrangeyCtx::new();
-    for i in 0..3 {println!("({:2}) rng.rand_range(64, 128):      {}", i, rng.rand_range(64, 128))}
+    for i in 0..3 {println!("({:2}) rng.rand_range(64, 128):      {}", i, rng.rand_range(64..128))}
     rng = OrangeyCtx::new();
     for i in 0..3 {println!("({:2}) rng.uniform_double():         {}", i, rng.uniform_double())}
     rng = OrangeyCtx::new();
